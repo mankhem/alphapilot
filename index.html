@@ -43,6 +43,10 @@
   #lock h1{letter-spacing:2px}
   #lock input{text-align:center;font-size:22px;letter-spacing:6px;margin:14px 0}
   #lockErr{color:#f87171;min-height:20px;font-size:14px}
+  .daybar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+  .daybar button{padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer}
+  .daybar button.on{background:#2563eb;color:#fff;border-color:#2563eb}
+  .daybar input[type=date]{padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--txt)}
 </style>
 </head>
 <body>
@@ -87,7 +91,12 @@
     </div>
     <div>
       <div class="card" style="margin-bottom:16px">
-        <h2>TODAY'S TRADES</h2>
+        <h2>TRADES — <span id="tradesDayLabel">TODAY</span></h2>
+        <div class="daybar">
+          <button id="dayToday" class="on">Today</button>
+          <button id="dayYday">Yesterday</button>
+          <input type="date" id="dayPick">
+        </div>
         <div id="tradesSummary" class="mut" style="margin-bottom:6px"></div>
         <table><tbody id="tradesBody"></tbody></table>
       </div>
@@ -120,7 +129,7 @@ const REPO = "mankhem/alphapilot";
 const API = "https://api.github.com/repos/" + REPO + "/contents/";
 const DATA_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/data.json";
 const CMDS_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/commands.json";
-let SNAP = null, pendingAction = null;
+let SNAP = null, pendingAction = null, viewDate = null, histCache = {};
 
 const $ = id => document.getElementById(id);
 const money = n => (n==null||isNaN(n)) ? "—" : (n<0?"-$":"$") + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -184,11 +193,7 @@ function render(){
       "Market sell " + (+p.qty) + " contract(s) at the broker (paper). Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
       {type:"close", occ:p.occ});
   });
-  const tr = SNAP.todaysTrades||[];
-  const paSys = pa;
-  $("tradesSummary").textContent = "Entries " + (paSys.todayEntries??0) + " · Exits " + (paSys.todayExits??0) + " · Realized " + money(paSys.todayRealized??0);
-  $("tradesBody").innerHTML = tr.map(t =>
-    "<tr><td>"+fmtTime(t.time)+"</td><td>"+t.kind+"</td><td>"+t.contractLabel+"</td><td>"+(t.price==null?"—":(+t.price).toFixed(2))+"</td><td class='"+(t.pnl==null?"":cls(t.pnl))+"'>"+(t.pnl==null?"—":money(t.pnl))+"</td><td class='mut'>"+(t.reason||"")+"</td></tr>").join("") || "<tr><td class='mut'>No trades yet today</td></tr>";
+  if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
   const pausedPosted = pa.status !== "running";
   const pausedPb = pb.status !== "scanning" && pb.status !== "running";
   $("systems").innerHTML =
@@ -205,6 +210,48 @@ function render(){
   });
   keyState();
 }
+
+function renderTrades(rows, label){
+  $("tradesDayLabel").textContent = label;
+  const closed = rows.filter(r=>!r.open);
+  const realized = closed.reduce((a,r)=>a+(r.pnl||0), 0);
+  $("tradesSummary").textContent = rows.length
+    ? closed.length + " closed · Realized " + money(Math.round(realized*100)/100) + (rows.length>closed.length ? " · " + (rows.length-closed.length) + " open" : "")
+    : "";
+  $("tradesBody").innerHTML = rows.map(r =>
+    "<tr><td>"+fmtTime(r.entryTime)+"</td><td><b>"+r.contractLabel+"</b> ×"+(+r.qty)+"</td>" +
+    "<td>in "+(+r.entry).toFixed(2)+" → "+(r.open ? "<b>open</b>" : "out "+(+r.exit).toFixed(2))+"</td>" +
+    "<td class='"+(r.pnl==null?"":cls(r.pnl))+"'>"+(r.pnl==null?"—":money(r.pnl))+"</td>" +
+    "<td class='mut'>"+(r.reason||"")+"</td></tr>").join("")
+    || "<tr><td class='mut'>No trades recorded for this day</td></tr>";
+}
+function setDayButtons(){
+  $("dayToday").classList.toggle("on", !viewDate);
+  $("dayYday").classList.toggle("on", !!viewDate && viewDate === ydayStr());
+  if(!viewDate) $("dayPick").value = "";
+}
+function ydayStr(){
+  const base = (SNAP && SNAP.date) || new Date().toISOString().slice(0,10);
+  const d = new Date(base + "T12:00:00Z"); d.setUTCDate(d.getUTCDate()-1);
+  return d.toISOString().slice(0,10);
+}
+async function showDay(dateStr){
+  viewDate = dateStr; setDayButtons();
+  if(histCache[dateStr]){ renderTrades(histCache[dateStr].tradeLog||[], dateStr); return; }
+  $("tradesBody").innerHTML = "<tr><td class='mut'>Loading…</td></tr>";
+  $("tradesDayLabel").textContent = dateStr;
+  try{
+    const j = await fetchRepoFile("history/" + dateStr + ".json",
+      "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/history/" + dateStr + ".json");
+    histCache[dateStr] = j;
+    if(viewDate === dateStr) renderTrades(j.tradeLog||[], dateStr);
+  }catch(e){
+    if(viewDate === dateStr) renderTrades([], dateStr);
+  }
+}
+$("dayToday").addEventListener("click", ()=>{ viewDate = null; setDayButtons(); if(SNAP) renderTrades(SNAP.tradeLog||[], "TODAY"); });
+$("dayYday").addEventListener("click", ()=> showDay(ydayStr()));
+$("dayPick").addEventListener("change", e=>{ if(e.target.value) showDay(e.target.value); });
 
 function confirmAction(title, body, cmd){
   pendingAction = cmd;
