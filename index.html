@@ -45,11 +45,9 @@
   #lock input{text-align:center;font-size:22px;letter-spacing:6px;margin:14px 0}
   #lockErr{color:#f87171;min-height:20px;font-size:14px}
   .brand{display:flex;align-items:center;gap:12px}
-  .brand img{height:48px;width:auto;border-radius:11px;border:1px solid var(--line);background:#000}
-  .brand .t1{font-size:19px;font-weight:800;letter-spacing:.03em;line-height:1.1}
-  .brand .t1 .pro{color:#4ade80}
-  .brand .t2{font-size:11px;font-weight:700;letter-spacing:.34em;color:var(--acc)}
-  #lock .box img{height:92px;width:auto;border-radius:16px;border:1px solid var(--line);background:#000;margin-bottom:10px}
+  .brand img{height:56px;width:auto;border-radius:11px;border:1px solid var(--line);background:#000}
+  .brand .t2{font-size:11px;font-weight:700;letter-spacing:.34em;color:var(--acc);margin-top:5px}
+  #lock .box img{width:270px;max-width:80vw;height:auto;border-radius:14px;border:1px solid var(--line);background:#000;margin-bottom:10px}
   h2{border-left:3px solid var(--acc);padding-left:9px}
   .daybar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
   .daybar button{padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer}
@@ -61,8 +59,7 @@
 <div id="lock" style="display:none">
   <div class="box">
     <img src="logo.png" alt="Alpha Trading Pro">
-    <h1>ALPHA TRADING <span style="color:#4ade80">PRO</span></h1>
-    <div class="sub" style="letter-spacing:.3em;font-weight:700;color:var(--acc)">BOT TRADER</div>
+    <div class="sub" style="letter-spacing:.3em;font-weight:700;color:var(--acc);font-size:13px">BOT TRADER</div>
     <div class="sub">Enter your code</div>
     <input type="password" id="lockCode" inputmode="numeric" autocomplete="off" placeholder="••••">
     <div id="lockErr"></div>
@@ -72,9 +69,8 @@
 <div class="wrap">
   <header>
     <div class="brand">
-      <img src="logo.png" alt="Alpha Trading Pro">
       <div>
-        <div class="t1">ALPHA TRADING <span class="pro">PRO</span></div>
+        <img src="logo.png" alt="Alpha Trading Pro">
         <div class="t2">BOT TRADER</div>
         <div class="sub" id="snapLine">Loading…</div>
       </div>
