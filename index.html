@@ -104,6 +104,8 @@
       <div class="mut" style="margin:12px 0 6px">STYLE 2 • PLAYBOOK VWAP RETEST</div>
       <div id="posPlaybook"></div>
       <div id="posOther"></div>
+      <div class="mut" style="margin:14px 0 6px">ORDERS WAITING TO FILL</div>
+      <div id="openOrders"></div>
     </div>
     <div>
       <div class="card" style="margin-bottom:16px">
@@ -212,6 +214,12 @@ function render(){
   $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
   const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook");
   $("posOther").innerHTML = other.length ? '<div class="mut" style="margin:12px 0 6px">UNASSIGNED</div>' + renderPos(other) : "";
+  const oo = SNAP.openOrders||[];
+  $("openOrders").innerHTML = oo.length ? oo.map(o =>
+    '<div class="pos"><div><b>'+o.action+'</b> '+o.contractLabel+' ×'+(+o.qty)+
+    '<br><span class="mut">'+(+o.filled)+' of '+(+o.qty)+' filled · '+o.status+(o.limitPrice?' · limit '+(+o.limitPrice):"")+'</span></div>'+
+    '<div class="pl" style="color:#fbbf24">waiting</div></div>').join("")
+    : '<div class="mut" style="padding:6px 0">No orders waiting — everything is filled</div>';
   document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close);
     confirmAction("Close " + p.ticker + " " + p.strike + p.right + "?",
