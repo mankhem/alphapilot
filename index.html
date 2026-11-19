@@ -181,7 +181,8 @@ function render(){
     (p.adopted?' <span class="tag">adopted</span>':"")+(p.locked?' <span class="tag">locked</span>':"")+
     '<br><span class="mut">'+(+p.entry).toFixed(2)+' → '+(+p.mark).toFixed(4)+(p.stopPx?' · stop '+p.stopPx:"")+' · in '+fmtTime(p.enteredAt)+'</span></div>'+
     '<div class="pl '+cls(p.unrealizedPnL)+'">'+money(p.unrealizedPnL)+'<span>'+(p.pnlPct>=0?"+":"")+p.pnlPct+'%</span>'+
-    '<button data-close="'+p.occ+'" style="margin-top:5px">Close</button></div></div>').join("")
+    '<span style="display:flex;gap:5px;margin-top:5px">'+((+p.qty)>1?'<button data-close1="'+p.occ+'">Close 1</button>':"")+
+    '<button data-close="'+p.occ+'">'+((+p.qty)>1?"Close all":"Close")+'</button></span></div></div>').join("")
     : '<div class="mut" style="padding:6px 0">No open positions right now</div>';
   $("posPosted").innerHTML = renderPos(pos.filter(p=>p.style==="posted"));
   $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
@@ -190,8 +191,14 @@ function render(){
   document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close);
     confirmAction("Close " + p.ticker + " " + p.strike + p.right + "?",
-      "Market sell " + (+p.qty) + " contract(s) at the broker (paper). Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
+      "Market sell ALL " + (+p.qty) + " contract(s) at the broker (paper). Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
       {type:"close", occ:p.occ});
+  });
+  document.querySelectorAll("[data-close1]").forEach(b => b.onclick = () => {
+    const p = pos.find(x=>x.occ===b.dataset.close1);
+    confirmAction("Close 1 of " + (+p.qty) + " — " + p.ticker + " " + p.strike + p.right + "?",
+      "Market sell just 1 contract at the broker (paper), leaving " + ((+p.qty)-1) + " open. Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
+      {type:"close", occ:p.occ, qty:1});
   });
   if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
   const pausedPosted = pa.status !== "running";
