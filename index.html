@@ -49,6 +49,11 @@
   .brand .t2{font-size:11px;font-weight:700;letter-spacing:.34em;color:var(--acc);margin-top:5px}
   #lock .box img{width:270px;max-width:80vw;height:auto;border-radius:14px;border:1px solid var(--line);background:#000;margin-bottom:10px}
   h2{border-left:3px solid var(--acc);padding-left:9px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer;font-weight:600;font-size:13px}
+  .chip.off{opacity:.4;text-decoration:line-through}
+  .chip.blocked{border-color:var(--red);color:#fca5a5;text-decoration:none;opacity:1}
+  #blockInput{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;text-transform:uppercase}
   .daybar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
   .daybar button{padding:5px 12px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer}
   .daybar button.on{background:#2563eb;color:#fff;border-color:#2563eb}
@@ -114,6 +119,14 @@
         <h2>SYSTEMS</h2>
         <div id="systems"></div>
         <div class="sys"><span>Style 3 — SPY VWAP both ways</span><span class="tag">Coming later</span></div>
+        <div class="mut" style="margin:14px 0 4px">PLAYBOOK NAMES — tap a name to switch it off / on</div>
+        <div id="pbNames" class="chips"></div>
+        <div class="mut" style="margin:14px 0 4px">POSTED ALERTS — blocked names are never traded (tap × to unblock)</div>
+        <div id="postedBlocked" class="chips"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="blockInput" placeholder="Ticker to block — e.g. TSLA" maxlength="8">
+          <button id="blockBtn">Block</button>
+        </div>
       </div>
       <div class="card" style="margin-top:16px">
         <h2>COMMAND LOG</h2>
@@ -225,8 +238,41 @@ function render(){
       pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.",
       {type:(pausing?"pause":"resume"), style});
   });
+  renderNames();
   keyState();
 }
+
+const PB_NAMES = ["ACN","AMD","CRM","CRWD","FCX","HOOD","HPE","IBM","NBIS","NOW","OKTA","PANW","QCOM","TEAM"];
+let SET = {postedBlocked:[], playbookDisabled:[]};
+function saveSettings(){
+  sendCommand({type:"settings", postedBlocked:SET.postedBlocked, playbookDisabled:SET.playbookDisabled});
+  renderNames();
+}
+function renderNames(){
+  if(SNAP && SNAP.settings) SET = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice()};
+  $("pbNames").innerHTML = PB_NAMES.map(t =>
+    "<button class='chip"+(SET.playbookDisabled.includes(t)?" off":"")+"' data-pb='"+t+"'>"+t+"</button>").join("");
+  $("postedBlocked").innerHTML = SET.postedBlocked.length
+    ? SET.postedBlocked.map(t => "<button class='chip blocked' data-unblock='"+t+"'>"+t+" ×</button>").join("")
+    : "<span class='mut'>None blocked — every alerted name can trade</span>";
+  document.querySelectorAll("[data-pb]").forEach(b => b.onclick = () => {
+    const t = b.dataset.pb;
+    SET.playbookDisabled = SET.playbookDisabled.includes(t)
+      ? SET.playbookDisabled.filter(x=>x!==t) : [...SET.playbookDisabled, t];
+    saveSettings();
+  });
+  document.querySelectorAll("[data-unblock]").forEach(b => b.onclick = () => {
+    SET.postedBlocked = SET.postedBlocked.filter(x=>x!==b.dataset.unblock);
+    saveSettings();
+  });
+}
+$("blockBtn").addEventListener("click", () => {
+  const v = $("blockInput").value.trim().toUpperCase();
+  if(!/^[A-Z][A-Z0-9.\-]{0,7}$/.test(v)){ toast("Type a ticker first, like TSLA"); return; }
+  if(!SET.postedBlocked.includes(v)) SET.postedBlocked = [...SET.postedBlocked, v];
+  $("blockInput").value = "";
+  saveSettings();
+});
 
 function renderTrades(rows, label){
   $("tradesDayLabel").textContent = label;
