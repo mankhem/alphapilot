@@ -244,12 +244,19 @@ function render(){
 
 const PB_NAMES = ["ACN","AMD","CRM","CRWD","FCX","HOOD","HPE","IBM","NBIS","NOW","OKTA","PANW","QCOM","TEAM"];
 let SET = {postedBlocked:[], playbookDisabled:[]};
+let setPending = null;
 function saveSettings(){
+  setPending = {postedBlocked:SET.postedBlocked.slice(), playbookDisabled:SET.playbookDisabled.slice(), at: Date.now()};
   sendCommand({type:"settings", postedBlocked:SET.postedBlocked, playbookDisabled:SET.playbookDisabled});
   renderNames();
 }
 function renderNames(){
-  if(SNAP && SNAP.settings) SET = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice()};
+  if(SNAP && SNAP.settings){
+    const srv = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice()};
+    if(setPending && JSON.stringify(srv) === JSON.stringify({postedBlocked:setPending.postedBlocked, playbookDisabled:setPending.playbookDisabled})) setPending = null;
+    if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice()};
+    else { SET = srv; setPending = null; }
+  }
   $("pbNames").innerHTML = PB_NAMES.map(t =>
     "<button class='chip"+(SET.playbookDisabled.includes(t)?" off":"")+"' data-pb='"+t+"'>"+t+"</button>").join("");
   $("postedBlocked").innerHTML = SET.postedBlocked.length
@@ -347,7 +354,9 @@ async function ghGet(path){
   const r = await fetch(API + path + "?ref=data", {headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"}});
   if(!r.ok) throw new Error("GitHub read " + r.status);
   const j = await r.json();
-  return {data: JSON.parse(atob(j.content.replace(/\n/g,""))), sha: j.sha};
+  const bin = atob(j.content.replace(/\n/g,""));
+  const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
+  return {data: JSON.parse(new TextDecoder().decode(bytes)), sha: j.sha};
 }
 async function ghPut(path, data, sha, msg){
   const r = await fetch(API + path, {method:"PUT", headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"},
@@ -357,17 +366,27 @@ async function ghPut(path, data, sha, msg){
 }
 async function sendCommand(cmd){
   if(!token()){ toast("Set the command key first (🔑 button)."); return; }
-  try{
-    toast("Sending command…");
-    const {data, sha} = await ghGet("commands.json");
-    const full = {id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), ts: new Date().toISOString(), status:"pending", ...cmd};
-    data.commands = data.commands || [];
-    data.commands.push(full);
-    await ghPut("commands.json", data, sha, "alphapilot command " + full.type);
-    fetch("https://purge.jsdelivr.net/gh/mankhem/alphapilot@data/commands.json").catch(()=>{});
-    toast("Command sent — the engine picks it up within ~15 seconds.");
-    setTimeout(loadCmdLog, 4000); setTimeout(loadCmdLog, 16000); setTimeout(()=>{loadCmdLog(); loadSnap();}, 32000);
-  }catch(e){ toast("Command failed: " + e.message, 6000); }
+  toast("Sending command…");
+  const full = {id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), ts: new Date().toISOString(), status:"pending", ...cmd};
+  let lastErr = null;
+  for(let attempt = 1; attempt <= 5; attempt++){
+    try{
+      const {data, sha} = await ghGet("commands.json");
+      data.commands = data.commands || [];
+      if(data.commands.some(c => c.id === full.id)){ lastErr = null; break; }
+      data.commands.push(full);
+      await ghPut("commands.json", data, sha, "alphapilot command " + full.type);
+      lastErr = null;
+      break;
+    }catch(e){
+      lastErr = e;
+      await new Promise(res => setTimeout(res, 1200 * attempt));
+    }
+  }
+  if(lastErr){ toast("Command failed: " + lastErr.message + " — tap again to retry.", 7000); return; }
+  fetch("https://purge.jsdelivr.net/gh/mankhem/alphapilot@data/commands.json").catch(()=>{});
+  toast("Command sent — the engine picks it up within ~15 seconds.");
+  setTimeout(loadCmdLog, 4000); setTimeout(loadCmdLog, 16000); setTimeout(()=>{loadCmdLog(); loadSnap();}, 32000);
 }
 async function loadCmdLog(){
   try{
