@@ -52,6 +52,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer;font-weight:600;font-size:13px}
   .chip.off{opacity:.4;text-decoration:line-through}
+  .chip.promoted{border-color:var(--grn);color:#86efac}
   .chip.blocked{border-color:var(--red);color:#fca5a5;text-decoration:none;opacity:1}
   #blockInput{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;text-transform:uppercase}
   .daybar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
@@ -119,8 +120,10 @@
         <h2>SYSTEMS</h2>
         <div id="systems"></div>
         <div class="sys"><span>Style 3 — SPY VWAP both ways</span><span class="tag">Coming later</span></div>
-        <div class="mut" style="margin:14px 0 4px">PLAYBOOK NAMES — tap a name to switch it off / on</div>
+        <div class="mut" style="margin:14px 0 4px">PLAYBOOK — TRADING names (tap to switch off)</div>
         <div id="pbNames" class="chips"></div>
+        <div class="mut" style="margin:12px 0 4px">PLAYBOOK — WATCHING names (tap to promote into trading)</div>
+        <div id="pbWatch" class="chips"></div>
         <div class="mut" style="margin:14px 0 4px">POSTED ALERTS — blocked names are never traded (tap × to unblock)</div>
         <div id="postedBlocked" class="chips"></div>
         <div style="display:flex;gap:6px;margin-top:8px">
@@ -243,29 +246,42 @@ function render(){
 }
 
 const PB_NAMES = ["ACN","AMD","CRM","CRWD","FCX","HOOD","HPE","IBM","NBIS","NOW","OKTA","PANW","QCOM","TEAM"];
-let SET = {postedBlocked:[], playbookDisabled:[]};
+let SET = {postedBlocked:[], playbookDisabled:[], playbookAlsoTrade:[]};
 let setPending = null;
+function setLists(){ return {postedBlocked:SET.postedBlocked.slice(), playbookDisabled:SET.playbookDisabled.slice(), playbookAlsoTrade:SET.playbookAlsoTrade.slice()}; }
 function saveSettings(){
-  setPending = {postedBlocked:SET.postedBlocked.slice(), playbookDisabled:SET.playbookDisabled.slice(), at: Date.now()};
-  sendCommand({type:"settings", postedBlocked:SET.postedBlocked, playbookDisabled:SET.playbookDisabled});
+  setPending = {...setLists(), at: Date.now()};
+  sendCommand({type:"settings", ...setLists()});
   renderNames();
 }
 function renderNames(){
   if(SNAP && SNAP.settings){
-    const srv = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice()};
-    if(setPending && JSON.stringify(srv) === JSON.stringify({postedBlocked:setPending.postedBlocked, playbookDisabled:setPending.playbookDisabled})) setPending = null;
-    if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice()};
+    const srv = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice(), playbookAlsoTrade:(SNAP.settings.playbookAlsoTrade||[]).slice()};
+    if(setPending && JSON.stringify(srv) === JSON.stringify({postedBlocked:setPending.postedBlocked, playbookDisabled:setPending.playbookDisabled, playbookAlsoTrade:setPending.playbookAlsoTrade})) setPending = null;
+    if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice(), playbookAlsoTrade:setPending.playbookAlsoTrade.slice()};
     else { SET = srv; setPending = null; }
   }
-  $("pbNames").innerHTML = PB_NAMES.map(t =>
-    "<button class='chip"+(SET.playbookDisabled.includes(t)?" off":"")+"' data-pb='"+t+"'>"+t+"</button>").join("");
+  const trading = [...PB_NAMES, ...SET.playbookAlsoTrade.filter(t=>!PB_NAMES.includes(t))];
+  $("pbNames").innerHTML = trading.map(t =>
+    "<button class='chip"+(SET.playbookDisabled.includes(t)?" off":(PB_NAMES.includes(t)?"":" promoted"))+"' data-pb='"+t+"'>"+t+(PB_NAMES.includes(t)?"":" ★")+"</button>").join("");
+  const watch = ((SNAP && SNAP.playbookWatchlist) || []).filter(t=>!trading.includes(t));
+  $("pbWatch").innerHTML = watch.map(t =>
+    "<button class='chip' data-promote='"+t+"'>"+t+" +</button>").join("")
+    || "<span class='mut'>—</span>";
   $("postedBlocked").innerHTML = SET.postedBlocked.length
     ? SET.postedBlocked.map(t => "<button class='chip blocked' data-unblock='"+t+"'>"+t+" ×</button>").join("")
     : "<span class='mut'>None blocked — every alerted name can trade</span>";
   document.querySelectorAll("[data-pb]").forEach(b => b.onclick = () => {
     const t = b.dataset.pb;
+    if(!PB_NAMES.includes(t)){ SET.playbookAlsoTrade = SET.playbookAlsoTrade.filter(x=>x!==t); saveSettings(); return; }
     SET.playbookDisabled = SET.playbookDisabled.includes(t)
       ? SET.playbookDisabled.filter(x=>x!==t) : [...SET.playbookDisabled, t];
+    saveSettings();
+  });
+  document.querySelectorAll("[data-promote]").forEach(b => b.onclick = () => {
+    const t = b.dataset.promote;
+    if(!SET.playbookAlsoTrade.includes(t)) SET.playbookAlsoTrade = [...SET.playbookAlsoTrade, t];
+    SET.playbookDisabled = SET.playbookDisabled.filter(x=>x!==t);
     saveSettings();
   });
   document.querySelectorAll("[data-unblock]").forEach(b => b.onclick = () => {
