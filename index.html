@@ -149,10 +149,10 @@
 <div id="toast"></div>
 
 <script>
-const REPO = "mankhem/alphapilot";
+const REPO = "mankhem/alphapilot-data";
 const API = "https://api.github.com/repos/" + REPO + "/contents/";
-const DATA_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/data.json";
-const CMDS_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/commands.json";
+const DATA_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot-data@data/data.json";
+const CMDS_URL = "https://cdn.jsdelivr.net/gh/mankhem/alphapilot-data@data/commands.json";
 let SNAP = null, pendingAction = null, viewDate = null, histCache = {};
 
 const $ = id => document.getElementById(id);
@@ -318,7 +318,7 @@ async function showDay(dateStr){
   $("tradesDayLabel").textContent = dateStr;
   try{
     const j = await fetchRepoFile("history/" + dateStr + ".json",
-      "https://cdn.jsdelivr.net/gh/mankhem/alphapilot@data/history/" + dateStr + ".json");
+      "https://cdn.jsdelivr.net/gh/mankhem/alphapilot-data@data/history/" + dateStr + ".json");
     histCache[dateStr] = j;
     if(viewDate === dateStr) renderTrades(j.tradeLog||[], dateStr);
   }catch(e){
@@ -392,7 +392,7 @@ async function sendCommand(cmd){
     }
   }
   if(lastErr){ toast("Command failed: " + lastErr.message + " — tap again to retry.", 7000); return; }
-  fetch("https://purge.jsdelivr.net/gh/mankhem/alphapilot@data/commands.json").catch(()=>{});
+  fetch("https://purge.jsdelivr.net/gh/mankhem/alphapilot-data@data/commands.json").catch(()=>{});
   toast("Command sent — the engine picks it up within ~15 seconds.");
   setTimeout(loadCmdLog, 4000); setTimeout(loadCmdLog, 16000); setTimeout(()=>{loadCmdLog(); loadSnap();}, 32000);
 }
