@@ -115,11 +115,26 @@ function toast(msg, ms=3500){ const t=$("toast"); t.textContent=msg; t.style.dis
 function token(){ return localStorage.getItem("ap_gh_token") || ""; }
 function keyState(){ $("keyState").textContent = token() ? "Command key saved on this device — buttons are live." : "No command key on this device — viewing works, buttons need the key (tap 🔑 Command key)."; }
 
+async function fetchRepoFile(path, cdnUrl){
+  // Fresh path first: GitHub API serves the data-branch file with no CDN
+  // cache (jsDelivr's branch cache went stale for 17+ min on 2026-11-19).
+  // Uses the saved command key when present (5,000 req/hr); anonymous
+  // works too at a lower rate. CDN is only the fallback.
+  try{
+    const h = {Accept:"application/vnd.github.raw+json"};
+    if(token()) h.Authorization = "Bearer " + token();
+    const r = await fetch(API + path + "?ref=data", {headers:h});
+    if(r.ok) return await r.json();
+    throw new Error("api " + r.status);
+  }catch(e){
+    const r = await fetch(cdnUrl + "?_=" + Date.now());
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  }
+}
 async function loadSnap(){
   try{
-    const r = await fetch(DATA_URL + "?_=" + Date.now());
-    if(!r.ok) throw new Error(r.status);
-    SNAP = await r.json();
+    SNAP = await fetchRepoFile("data.json", DATA_URL);
     render();
   }catch(e){ $("snapLine").textContent = "Could not load data.json — " + e.message; }
 }
@@ -232,9 +247,7 @@ async function sendCommand(cmd){
 }
 async function loadCmdLog(){
   try{
-    const r = await fetch(CMDS_URL + "?_=" + Date.now());
-    if(!r.ok) return;
-    const j = await r.json();
+    const j = await fetchRepoFile("commands.json", CMDS_URL);
     const today = (SNAP&&SNAP.date) || "";
     const list = (j.commands||[]).filter(c => (c.ts||"").slice(0,10) === new Date().toISOString().slice(0,10)).slice(-8).reverse();
     $("cmdLog").innerHTML = list.length ? list.map(c =>
