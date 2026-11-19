@@ -48,6 +48,11 @@
   .brand img{height:62px;width:auto;max-width:64vw;border-radius:11px;border:1px solid var(--line);background:#000}
   .brand .t2{font-size:11px;font-weight:700;letter-spacing:.34em;color:var(--acc);margin-top:5px}
   #lock .box img{width:270px;max-width:80vw;height:auto;border-radius:14px;border:1px solid var(--line);background:#000;margin-bottom:10px}
+  #lockPass{letter-spacing:1px;font-size:17px}
+  .modalov{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;display:flex;align-items:center;justify-content:center}
+  .modalov .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;max-width:320px;width:90%;text-align:center}
+  .modalov input{width:100%;margin:8px 0;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--txt)}
+  #pwErr{color:#f87171;min-height:20px;font-size:14px}
   h2{border-left:3px solid var(--acc);padding-left:9px}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer;font-weight:600;font-size:13px}
@@ -66,10 +71,23 @@
   <div class="box">
     <img src="logo-wide.png" alt="Alpha Trading Pro">
     <div class="sub" style="letter-spacing:.3em;font-weight:700;color:var(--acc);font-size:13px">BOT TRADER</div>
-    <div class="sub">Enter your code</div>
-    <input type="password" id="lockCode" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <div class="sub" id="lockLabel">Enter your password</div>
+    <input type="password" id="lockPass" autocomplete="off" placeholder="Password">
+    <input type="password" id="lockCode" inputmode="numeric" autocomplete="off" placeholder="••••" style="display:none">
     <div id="lockErr"></div>
     <button class="btn primary" id="lockBtn" style="width:100%">Unlock</button>
+    <div style="margin-top:10px;font-size:13px"><a href="#" id="codeModeLink" style="color:var(--mut)">Use the 4-digit code on this device instead</a></div>
+  </div>
+</div>
+<div id="pwModal" class="modalov" style="display:none">
+  <div class="box">
+    <div class="sub" style="font-weight:700">Set your app password</div>
+    <div class="mut" style="font-size:13px;margin:8px 0">8+ characters. This password unlocks the app on ANY device. It never leaves this device — it only seals your key.</div>
+    <input type="password" id="pwNew1" autocomplete="new-password" placeholder="New password">
+    <input type="password" id="pwNew2" autocomplete="new-password" placeholder="Repeat password">
+    <div id="pwErr"></div>
+    <button class="btn primary" id="pwSetBtn" style="width:100%">Set password</button>
+    <button class="btn" id="pwCancelBtn" style="width:100%;margin-top:8px">Cancel</button>
   </div>
 </div>
 <div class="wrap">
@@ -93,6 +111,7 @@
     <button id="refreshBtn">↻ Refresh</button>
     <button class="danger" id="flattenBtn">FLATTEN ALL</button>
     <button id="keyBtn">🔑 Command key</button>
+    <button id="pwBtn">🔐 App password</button>
   </div>
   <div class="sub" id="keyState" style="margin-bottom:10px"></div>
 
@@ -421,7 +440,7 @@ async function sha256(txt){
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-async function tryUnlock(){
+async function tryCodeUnlock(){
   const v = $("lockCode").value.trim();
   if(!v) return;
   if(await sha256(v) === CODE_HASH){
@@ -434,10 +453,99 @@ async function tryUnlock(){
     $("lockCode").value = "";
   }
 }
+// ---- Password unlock (alpha, 2026-11-19): the command key sealed with
+// a password he chooses, so ANY device unlocks with the password alone.
+// The sealed envelope (keyblob.json, public) is useless without it.
+const PUB_REPO = "mankhem/alphapilot";
+let BLOB = null, LOCK_MODE = "password";
+const b64e = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64d = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+async function deriveKey(pw, salt){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:250000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+}
+async function encryptWithPassword(pw, plaintext){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pw, salt);
+  const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(plaintext));
+  return {v:1, salt:b64e(salt), iv:b64e(iv), ct:b64e(ct)};
+}
+async function decryptWithPassword(pw, blob){
+  const key = await deriveKey(pw, b64d(blob.salt));
+  const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64d(blob.iv)}, key, b64d(blob.ct));
+  return new TextDecoder().decode(pt);
+}
+async function tryUnlock(){
+  if(LOCK_MODE === "code") return tryCodeUnlock();
+  const pw = $("lockPass").value;
+  if(!pw) return;
+  if(!BLOB){ $("lockErr").textContent = "No password set yet — use the code link below, then set a password on the PC."; return; }
+  try{
+    const tok = await decryptWithPassword(pw, BLOB);
+    if(!tok.startsWith("github_pat_") && !tok.startsWith("ghp_")) throw new Error("bad token");
+    localStorage.setItem("ap_gh_token", tok);
+    localStorage.setItem("ap_unlocked", CODE_HASH);
+    UNLOCKED = true;
+    $("lock").style.display = "none";
+    $("lockPass").value = "";
+    loadSnap(); loadCmdLog();
+  }catch(e){
+    $("lockErr").textContent = "Wrong password — try again.";
+    $("lockPass").value = "";
+  }
+}
+function showCodeInputs(){
+  LOCK_MODE = "code";
+  $("lockLabel").textContent = "Enter your code";
+  $("lockPass").style.display = "none";
+  $("lockCode").style.display = "";
+  $("codeModeLink").style.display = "none";
+  setTimeout(()=>$("lockCode").focus(), 100);
+}
+$("codeModeLink").addEventListener("click", e => { e.preventDefault(); showCodeInputs(); });
 $("lockBtn").addEventListener("click", tryUnlock);
+$("lockPass").addEventListener("keydown", e=>{ if(e.key==="Enter") tryUnlock(); });
 $("lockCode").addEventListener("keydown", e=>{ if(e.key==="Enter") tryUnlock(); });
+// ---- Set / change the app password (needs the key saved on this device)
+async function putMainFile(path, obj){
+  let sha = null;
+  const tr = await fetch("https://api.github.com/repos/" + PUB_REPO + "/git/trees/main", {cache:"no-store", headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"}});
+  if(tr.ok){ const tj = await tr.json(); const e = (tj.tree||[]).find(x=>x.path===path); if(e) sha = e.sha; }
+  const body = {message:"AlphaPilot app password envelope", branch:"main",
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(obj))))};
+  if(sha) body.sha = sha;
+  const r = await fetch("https://api.github.com/repos/" + PUB_REPO + "/contents/" + path,
+    {method:"PUT", headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"}, body: JSON.stringify(body)});
+  if(!r.ok) throw new Error("GitHub write " + r.status);
+}
+$("pwBtn").addEventListener("click", () => {
+  if(!token()){ toast("First save your command key on this device (🔑 Command key), then set the password."); return; }
+  $("pwErr").textContent = ""; $("pwNew1").value = ""; $("pwNew2").value = "";
+  $("pwModal").style.display = "flex";
+});
+$("pwCancelBtn").addEventListener("click", () => $("pwModal").style.display = "none");
+$("pwSetBtn").addEventListener("click", async () => {
+  const p1 = $("pwNew1").value, p2 = $("pwNew2").value;
+  if(p1.length < 8){ $("pwErr").textContent = "Password needs at least 8 characters."; return; }
+  if(p1 !== p2){ $("pwErr").textContent = "Passwords don't match."; return; }
+  try{
+    const blob = await encryptWithPassword(p1, token());
+    await putMainFile("keyblob.json", blob);
+    BLOB = blob;
+    $("pwModal").style.display = "none";
+    toast("Password set ✓ — any device can now unlock with it.");
+  }catch(e){ $("pwErr").textContent = "Could not save: " + e.message; }
+});
 if(UNLOCKED){ loadSnap(); loadCmdLog(); }
-else { $("lock").style.display = "flex"; setTimeout(()=>$("lockCode").focus(), 100); }
+else {
+  $("lock").style.display = "flex";
+  fetch("keyblob.json", {cache:"no-store"}).then(r => r.ok ? r.json() : null).then(b => {
+    BLOB = b;
+    if(b) setTimeout(()=>$("lockPass").focus(), 100);
+    else showCodeInputs();
+  }).catch(() => showCodeInputs());
+}
 setInterval(()=>{ if(UNLOCKED){ loadSnap(); loadCmdLog(); } }, 30000);
 </script>
 </body>
