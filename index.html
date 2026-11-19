@@ -51,8 +51,8 @@
   h2{border-left:3px solid var(--acc);padding-left:9px}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--txt);cursor:pointer;font-weight:600;font-size:13px}
-  .chip.off{opacity:.4;text-decoration:line-through}
-  .chip.promoted{border-color:var(--grn);color:#86efac}
+  .chip.on{border-color:var(--grn);color:#86efac;background:rgba(34,197,94,.14)}
+  .chip.off{border-color:var(--red);color:#fca5a5;background:rgba(239,68,68,.10)}
   .chip.blocked{border-color:var(--red);color:#fca5a5;text-decoration:none;opacity:1}
   #blockInput{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;text-transform:uppercase}
   .daybar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
@@ -120,10 +120,8 @@
         <h2>SYSTEMS</h2>
         <div id="systems"></div>
         <div class="sys"><span>Style 3 — SPY VWAP both ways</span><span class="tag">Coming later</span></div>
-        <div class="mut" style="margin:14px 0 4px">PLAYBOOK — TRADING names (tap to switch off)</div>
-        <div id="pbNames" class="chips"></div>
-        <div class="mut" style="margin:12px 0 4px">PLAYBOOK — WATCHING names (tap to promote into trading)</div>
-        <div id="pbWatch" class="chips"></div>
+        <div class="mut" style="margin:14px 0 4px">PLAYBOOK NAMES — <span style="color:#86efac">green trades</span> · <span style="color:#fca5a5">red doesn't</span> · tap a name to switch it</div>
+        <div id="pbAll" class="chips"></div>
         <div class="mut" style="margin:14px 0 4px">POSTED ALERTS — blocked names are never traded (tap × to unblock)</div>
         <div id="postedBlocked" class="chips"></div>
         <div style="display:flex;gap:6px;margin-top:8px">
@@ -261,27 +259,19 @@ function renderNames(){
     if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice(), playbookAlsoTrade:setPending.playbookAlsoTrade.slice()};
     else { SET = srv; setPending = null; }
   }
-  const trading = [...PB_NAMES, ...SET.playbookAlsoTrade.filter(t=>!PB_NAMES.includes(t))];
-  $("pbNames").innerHTML = trading.map(t =>
-    "<button class='chip"+(SET.playbookDisabled.includes(t)?" off":(PB_NAMES.includes(t)?"":" promoted"))+"' data-pb='"+t+"'>"+t+(PB_NAMES.includes(t)?"":" ★")+"</button>").join("");
-  const watch = ((SNAP && SNAP.playbookWatchlist) || []).filter(t=>!trading.includes(t));
-  $("pbWatch").innerHTML = watch.map(t =>
-    "<button class='chip' data-promote='"+t+"'>"+t+" +</button>").join("")
-    || "<span class='mut'>—</span>";
+  const tradingSet = new Set([...PB_NAMES, ...SET.playbookAlsoTrade].filter(t=>!SET.playbookDisabled.includes(t)));
+  const all = ((SNAP && SNAP.playbookWatchlist) || []).length ? SNAP.playbookWatchlist
+    : [...new Set([...PB_NAMES, ...SET.playbookAlsoTrade, ...SET.playbookDisabled])];
+  $("pbAll").innerHTML = all.map(t =>
+    "<button class='chip "+(tradingSet.has(t)?"on":"off")+"' data-name='"+t+"'>"+t+"</button>").join("");
   $("postedBlocked").innerHTML = SET.postedBlocked.length
     ? SET.postedBlocked.map(t => "<button class='chip blocked' data-unblock='"+t+"'>"+t+" ×</button>").join("")
     : "<span class='mut'>None blocked — every alerted name can trade</span>";
-  document.querySelectorAll("[data-pb]").forEach(b => b.onclick = () => {
-    const t = b.dataset.pb;
-    if(!PB_NAMES.includes(t)){ SET.playbookAlsoTrade = SET.playbookAlsoTrade.filter(x=>x!==t); saveSettings(); return; }
-    SET.playbookDisabled = SET.playbookDisabled.includes(t)
-      ? SET.playbookDisabled.filter(x=>x!==t) : [...SET.playbookDisabled, t];
-    saveSettings();
-  });
-  document.querySelectorAll("[data-promote]").forEach(b => b.onclick = () => {
-    const t = b.dataset.promote;
-    if(!SET.playbookAlsoTrade.includes(t)) SET.playbookAlsoTrade = [...SET.playbookAlsoTrade, t];
-    SET.playbookDisabled = SET.playbookDisabled.filter(x=>x!==t);
+  document.querySelectorAll("[data-name]").forEach(b => b.onclick = () => {
+    const t = b.dataset.name;
+    if(tradingSet.has(t)) tradingSet.delete(t); else tradingSet.add(t);
+    SET.playbookDisabled = PB_NAMES.filter(x=>!tradingSet.has(x));
+    SET.playbookAlsoTrade = [...tradingSet].filter(x=>!PB_NAMES.includes(x));
     saveSettings();
   });
   document.querySelectorAll("[data-unblock]").forEach(b => b.onclick = () => {
