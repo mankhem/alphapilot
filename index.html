@@ -537,8 +537,11 @@ $("pwSetBtn").addEventListener("click", async () => {
     toast("Password set ✓ — any device can now unlock with it.");
   }catch(e){ $("pwErr").textContent = "Could not save: " + e.message; }
 });
-if(UNLOCKED){ loadSnap(); loadCmdLog(); }
+if(UNLOCKED && token()){ loadSnap(); loadCmdLog(); }
 else {
+  // Unlocked-but-keyless device (e.g. code used before the password
+  // existed): ask for the password, never the raw command key.
+  UNLOCKED = false;
   $("lock").style.display = "flex";
   fetch("keyblob.json", {cache:"no-store"}).then(r => r.ok ? r.json() : null).then(b => {
     BLOB = b;
