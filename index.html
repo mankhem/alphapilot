@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlphaPilot — Paper</title>
+<style>
+  :root{--bg:#0b0e13;--card:#141922;--card2:#1a2130;--line:#262f42;--txt:#e8edf5;--mut:#8b96ab;--grn:#22c55e;--red:#ef4444;--acc:#4f8cff}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  h1{font-size:20px;letter-spacing:.06em;margin:0} h1 .p{color:var(--acc)}
+  .net{font-size:26px;font-weight:800;text-align:right}
+  .sub{color:var(--mut);font-size:12px}
+  .dots{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .dot{border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;background:var(--card)}
+  .on{color:var(--grn)} .off{color:var(--red)}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1.6fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  h2{font-size:13px;letter-spacing:.06em;margin:0 0 10px}
+  .pos{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--card2);display:flex;justify-content:space-between;gap:10px}
+  .pos b{font-size:15px} .mut{color:var(--mut);font-size:12px}
+  .pl{text-align:right;font-weight:700} .pos .pl span{display:block;font-size:12px}
+  button{cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#232c40;color:var(--txt);padding:7px 12px;font-weight:600}
+  button:hover{border-color:var(--acc)} button:disabled{opacity:.45;cursor:not-allowed}
+  .danger{background:#7f1d1d;border-color:#991b1b;color:#fff}
+  .rowbtns{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+  .rowbtns button{flex:1;padding:11px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+  .g{color:var(--grn)} .r{color:var(--red)}
+  .sys{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .tag{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--mut)}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  #modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:420px;width:100%;padding:18px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1f2937;border:1px solid var(--line);color:var(--txt);padding:10px 16px;border-radius:10px;display:none;z-index:60;font-size:14px}
+  input[type=password],input[type=text]{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--txt)}
+  .stale{color:#f59e0b;font-weight:700}
+  footer{color:var(--mut);font-size:12px;margin:14px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ALPHAPILOT <span class="p">— Paper</span></h1>
+      <div class="sub" id="snapLine">Loading…</div>
+    </div>
+    <div>
+      <div class="net" id="netLiq">—</div>
+      <div class="sub" style="text-align:right">NetLiq · Day P/L <b id="dayPnl">—</b></div>
+    </div>
+  </header>
+
+  <div class="dots" id="dots"></div>
+
+  <div class="rowbtns">
+    <button id="refreshBtn">↻ Refresh</button>
+    <button class="danger" id="flattenBtn">FLATTEN ALL</button>
+    <button id="keyBtn">🔑 Command key</button>
+  </div>
+  <div class="sub" id="keyState" style="margin-bottom:10px"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>OPEN POSITIONS</h2>
+      <div class="mut" style="margin-bottom:6px">STYLE 1 • POSTED ALERTS</div>
+      <div id="posPosted"></div>
+      <div class="mut" style="margin:12px 0 6px">STYLE 2 • PLAYBOOK VWAP RETEST</div>
+      <div id="posPlaybook"></div>
+      <div id="posOther"></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>TODAY'S TRADES</h2>
+        <div id="tradesSummary" class="mut" style="margin-bottom:6px"></div>
+        <table><tbody id="tradesBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>SYSTEMS</h2>
+        <div id="systems"></div>
+        <div class="sys"><span>Style 3 — SPY VWAP both ways</span><span class="tag">Coming later</span></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>COMMAND LOG</h2>
+        <div id="cmdLog" class="mut">No commands yet today.</div>
+      </div>
+    </div>
+  </div>
+  <footer>Broker is ground truth · Paper account only · AlphaPilot</footer>
+</div>
+
+<div id="modal"><div class="box">
+  <div id="modalTitle" style="font-weight:800;font-size:16px;margin-bottom:8px"></div>
+  <div id="modalBody" class="mut" style="margin-bottom:14px;line-height:1.5"></div>
+  <div style="display:flex;gap:8px">
+    <button id="modalCancel" style="flex:1">Cancel</button>
+    <button id="modalOk" class="danger" style="flex:1">Confirm</button>
+  </div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+const REPO = "mankhem/alphapilot";
+const API = "https://api.github.com/repos/" + REPO + "/contents/";
+let SNAP = null, pendingAction = null;
+
+const $ = id => document.getElementById(id);
+const money = n => (n==null||isNaN(n)) ? "—" : (n<0?"-$":"$") + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const cls = n => n>=0 ? "g" : "r";
+function toast(msg, ms=3500){ const t=$("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none", ms); }
+function token(){ return localStorage.getItem("ap_gh_token") || ""; }
+function keyState(){ $("keyState").textContent = token() ? "Command key saved on this device — buttons are live." : "No command key on this device — viewing works, buttons need the key (tap 🔑 Command key)."; }
+
+async function loadSnap(){
+  try{
+    const r = await fetch("data.json?_=" + Date.now());
+    if(!r.ok) throw new Error(r.status);
+    SNAP = await r.json();
+    render();
+  }catch(e){ $("snapLine").textContent = "Could not load data.json — " + e.message; }
+}
+function fmtTime(iso){ try{ return new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+
+function render(){
+  if(!SNAP) return;
+  $("netLiq").textContent = money(SNAP.netLiq);
+  const dp = $("dayPnl"); dp.textContent = money(SNAP.dayPnL); dp.className = cls(SNAP.dayPnL||0);
+  const ageMin = (Date.now() - new Date(SNAP.collectedAt).getTime())/60000;
+  $("snapLine").innerHTML = "Snapshot " + fmtTime(SNAP.collectedAt) + (ageMin>3 ? ' · <span class="stale">STALE (' + Math.round(ageMin) + ' min)</span>' : " · live");
+  const g = SNAP.gateway||{};
+  const pa = (SNAP.systems||{}).postedAlerts||{}, pb = (SNAP.systems||{}).playbook||{};
+  $("dots").innerHTML =
+    '<span class="dot">Gateway <b class="'+(g.status==="live"?"on":"off")+'">● '+(g.label||g.status||"—")+'</b></span>' +
+    '<span class="dot">Posted Alerts <b class="'+(pa.status==="running"?"on":"off")+'">● '+(pa.status||"—")+'</b></span>' +
+    '<span class="dot">Playbook <b class="'+(pb.status==="scanning"?"on":"off")+'">● '+(pb.status||"—")+'</b></span>';
+  const pos = SNAP.positions||[];
+  const renderPos = list => list.length ? list.map(p =>
+    '<div class="pos"><div><b>'+p.ticker+'</b> '+p.strike+p.right+' · exp '+p.expiry+' ×'+(+p.qty)+
+    (p.adopted?' <span class="tag">adopted</span>':"")+(p.locked?' <span class="tag">locked</span>':"")+
+    '<br><span class="mut">'+(+p.entry).toFixed(2)+' → '+(+p.mark).toFixed(4)+(p.stopPx?' · stop '+p.stopPx:"")+' · in '+fmtTime(p.enteredAt)+'</span></div>'+
+    '<div class="pl '+cls(p.unrealizedPnL)+'">'+money(p.unrealizedPnL)+'<span>'+(p.pnlPct>=0?"+":"")+p.pnlPct+'%</span>'+
+    '<button data-close="'+p.occ+'" style="margin-top:5px">Close</button></div></div>').join("")
+    : '<div class="mut" style="padding:6px 0">No open positions right now</div>';
+  $("posPosted").innerHTML = renderPos(pos.filter(p=>p.style==="posted"));
+  $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
+  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook");
+  $("posOther").innerHTML = other.length ? '<div class="mut" style="margin:12px 0 6px">UNASSIGNED</div>' + renderPos(other) : "";
+  document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => {
+    const p = pos.find(x=>x.occ===b.dataset.close);
+    confirmAction("Close " + p.ticker + " " + p.strike + p.right + "?",
+      "Market sell " + (+p.qty) + " contract(s) at the broker (paper). Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
+      {type:"close", occ:p.occ});
+  });
+  const tr = SNAP.todaysTrades||[];
+  const paSys = pa;
+  $("tradesSummary").textContent = "Entries " + (paSys.todayEntries??0) + " · Exits " + (paSys.todayExits??0) + " · Realized " + money(paSys.todayRealized??0);
+  $("tradesBody").innerHTML = tr.map(t =>
+    "<tr><td>"+fmtTime(t.time)+"</td><td>"+t.kind+"</td><td>"+t.contractLabel+"</td><td>"+(t.price==null?"—":(+t.price).toFixed(2))+"</td><td class='"+(t.pnl==null?"":cls(t.pnl))+"'>"+(t.pnl==null?"—":money(t.pnl))+"</td><td class='mut'>"+(t.reason||"")+"</td></tr>").join("") || "<tr><td class='mut'>No trades yet today</td></tr>";
+  const pausedPosted = pa.status !== "running";
+  const pausedPb = pb.status !== "scanning" && pb.status !== "running";
+  $("systems").innerHTML =
+    '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
+    '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
+    '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
+    '<button data-toggle="playbook">'+(pb.status==="scanning"?"Pause":"Resume")+'</button></div>';
+  document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
+    const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
+    const pausing = b.textContent === "Pause";
+    confirmAction((pausing?"Pause ":"Resume ") + label + "?",
+      pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.",
+      {type:(pausing?"pause":"resume"), style});
+  });
+  keyState();
+}
+
+function confirmAction(title, body, cmd){
+  pendingAction = cmd;
+  $("modalTitle").textContent = title;
+  $("modalBody").textContent = body;
+  $("modal").style.display = "flex";
+}
+$("modalCancel").onclick = () => { $("modal").style.display="none"; pendingAction=null; };
+$("modalOk").onclick = async () => {
+  $("modal").style.display="none";
+  if(pendingAction) await sendCommand(pendingAction);
+  pendingAction = null;
+};
+$("flattenBtn").onclick = () => {
+  const n = (SNAP&&SNAP.positions||[]).length;
+  confirmAction("FLATTEN ALL — close every position?",
+    "Market sell ALL " + n + " open position(s) at the broker (paper). This cannot be undone.", {type:"flatten"});
+};
+$("refreshBtn").onclick = async () => { toast("Refreshing…"); await loadSnap(); await loadCmdLog(); toast("Updated " + new Date().toLocaleTimeString()); };
+$("keyBtn").onclick = () => {
+  const cur = token();
+  const v = prompt("Command key (GitHub fine-grained token for this repo only). It stays ONLY in this browser on this device — never in the site code. Leave empty to remove.", cur ? "••••••••" : "");
+  if(v === null) return;
+  if(v === "" ){ localStorage.removeItem("ap_gh_token"); toast("Command key removed from this device."); }
+  else if(v !== "••••••••"){ localStorage.setItem("ap_gh_token", v.trim()); toast("Command key saved on this device."); }
+  keyState();
+};
+
+async function ghGet(path){
+  const r = await fetch(API + path + "?ref=main", {headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"}});
+  if(!r.ok) throw new Error("GitHub read " + r.status);
+  const j = await r.json();
+  return {data: JSON.parse(atob(j.content.replace(/\n/g,""))), sha: j.sha};
+}
+async function ghPut(path, data, sha, msg){
+  const r = await fetch(API + path, {method:"PUT", headers:{Authorization:"Bearer " + token(), Accept:"application/vnd.github+json"},
+    body: JSON.stringify({message: msg, content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 1)))), sha, branch:"main"})});
+  if(!r.ok) throw new Error("GitHub write " + r.status);
+  return r.json();
+}
+async function sendCommand(cmd){
+  if(!token()){ toast("Set the command key first (🔑 button)."); return; }
+  try{
+    toast("Sending command…");
+    const {data, sha} = await ghGet("commands.json");
+    const full = {id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), ts: new Date().toISOString(), status:"pending", ...cmd};
+    data.commands = data.commands || [];
+    data.commands.push(full);
+    await ghPut("commands.json", data, sha, "alphapilot command " + full.type);
+    toast("Command sent — the engine picks it up within ~15 seconds.");
+    setTimeout(loadCmdLog, 4000); setTimeout(loadCmdLog, 16000); setTimeout(()=>{loadCmdLog(); loadSnap();}, 32000);
+  }catch(e){ toast("Command failed: " + e.message, 6000); }
+}
+async function loadCmdLog(){
+  try{
+    const r = await fetch("commands.json?_=" + Date.now());
+    if(!r.ok) return;
+    const j = await r.json();
+    const today = (SNAP&&SNAP.date) || "";
+    const list = (j.commands||[]).filter(c => (c.ts||"").slice(0,10) === new Date().toISOString().slice(0,10)).slice(-8).reverse();
+    $("cmdLog").innerHTML = list.length ? list.map(c =>
+      "<div>" + fmtTime(c.ts) + " · <b>" + c.type + "</b> " + (c.occ||c.style||"") + " → " + c.status + (c.result ? " · " + c.result : "") + "</div>").join("")
+      : "No commands yet today.";
+  }catch(e){}
+}
+loadSnap(); loadCmdLog();
+setInterval(()=>{ loadSnap(); loadCmdLog(); }, 30000);
+</script>
+</body>
+</html>
