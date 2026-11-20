@@ -219,7 +219,7 @@ function render(){
   $("dots").innerHTML =
     '<span class="dot">Gateway <b class="'+(g.status==="live"?"on":"off")+'">● '+(g.label||g.status||"—")+'</b></span>' +
     '<span class="dot">Posted Alerts <b class="'+(pa.status==="running"?"on":"off")+'">● '+(pa.status||"—")+'</b></span>' +
-    '<span class="dot">Playbook <b class="'+(pb.status==="scanning"?"on":"off")+'">● '+(pb.status||"—")+'</b></span>';
+    '<span class="dot">Playbook <b class="'+(pb.status==="scanning"||pb.status==="idle"?"on":"off")+'">● '+(pb.status||"—")+'</b></span>';
   const pos = SNAP.positions||[];
   const renderPos = list => list.length ? list.map(p =>
     '<div class="pos"><div><b>'+p.ticker+'</b> '+p.strike+p.right+' · exp '+p.expiry+' ×'+(+p.qty)+
@@ -253,12 +253,12 @@ function render(){
   });
   if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
   const pausedPosted = pa.status !== "running";
-  const pausedPb = pb.status !== "scanning" && pb.status !== "running";
+  const pausedPb = pb.status === "paused";
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
     '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
-    '<button data-toggle="playbook">'+(pb.status==="scanning"?"Pause":"Resume")+'</button></div>';
+    '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
     const pausing = b.textContent === "Pause";
