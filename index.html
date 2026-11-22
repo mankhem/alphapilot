@@ -32,6 +32,12 @@
   td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
   .g{color:var(--grn)} .r{color:var(--red)}
   .sys{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .sw{position:relative;width:62px;height:30px;border-radius:15px;border:1px solid var(--line);background:#343945;cursor:pointer;padding:0;flex:none}
+  .sw .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#8b93a3;transition:left .15s ease,background .15s ease}
+  .sw .swtx{position:absolute;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;letter-spacing:.5px;color:#9aa3b2;right:7px}
+  .sw.on{background:#14532d;border-color:#22c55e}
+  .sw.on .knob{left:34px;background:#4ade80}
+  .sw.on .swtx{color:#bbf7d0;right:auto;left:8px}
   .tag{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--mut)}
   #modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
   #modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:420px;width:100%;padding:18px}
@@ -272,11 +278,11 @@ function render(){
     : "Off";
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
-    '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
+    '<button class="sw '+(pausedPosted?"off":"on")+'" data-toggle="posted" data-on="'+(pausedPosted?"0":"1")+'" role="switch" aria-checked="'+(pausedPosted?"false":"true")+'"><span class="swtx">'+(pausedPosted?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Posted Alerts — Bearish</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten · puts</span></span>' +
-    '<button data-toggle="postedBearish">'+(pausedPostedB?"Resume":"Pause")+'</button></div>' +
+    '<button class="sw '+(pausedPostedB?"off":"on")+'" data-toggle="postedBearish" data-on="'+(pausedPostedB?"0":"1")+'" role="switch" aria-checked="'+(pausedPostedB?"false":"true")+'"><span class="swtx">'+(pausedPostedB?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
-    '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
+    '<button class="sw '+(pausedPb?"off":"on")+'" data-toggle="playbook" data-on="'+(pausedPb?"0":"1")+'" role="switch" aria-checked="'+(pausedPb?"false":"true")+'"><span class="swtx">'+(pausedPb?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
     '<span class="tag">' + svTag + '</span></div>' +
     '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b>' + (s4.locked ? ' <span class="tag">🔒 LOCKED</span>' : ' <span class="tag">DRAFT</span>') + '<br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
@@ -284,12 +290,12 @@ function render(){
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle;
     const label = style==="posted" ? "Posted Alerts" : style==="postedBearish" ? "Posted Alerts — Bearish" : "Playbook VWAP Retest";
-    const pausing = b.textContent === "Pause";
+    const pausing = b.dataset.on === "1";
     const body = style==="postedBearish"
       ? (pausing ? "Only new bearish entries stop. The trader keeps running — open bearish positions keep their ladder exits, and bullish Posted Alerts are not touched."
                  : "Bearish entries open up again on the next ⭐ alert. The trader was never stopped.")
       : (pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.");
-    confirmAction((pausing?"Pause ":"Resume ") + label + "?",
+    confirmAction((pausing?"Turn OFF ":"Turn ON ") + label + "?",
       body,
       {type:(pausing?"pause":"resume"), style});
   });
