@@ -122,6 +122,8 @@
       <div id="posPosted"></div>
       <div class="mut" style="margin:12px 0 6px">STYLE 2 • PLAYBOOK VWAP RETEST</div>
       <div id="posPlaybook"></div>
+      <div class="mut" style="margin:12px 0 6px">STYLE 3 • SPY VWAP PICTURE-PERFECT</div>
+      <div id="posSpy"></div>
       <div id="posOther"></div>
       <div class="mut" style="margin:14px 0 6px">ORDERS WAITING TO FILL</div>
       <div id="openOrders"></div>
@@ -140,7 +142,6 @@
       <div class="card">
         <h2>SYSTEMS</h2>
         <div id="systems"></div>
-        <div class="sys"><span>Style 3 — SPY VWAP both ways</span><span class="tag">Coming later</span></div>
         <div class="mut" style="margin:14px 0 4px">PLAYBOOK NAMES — <span style="color:#86efac">green trades</span> · <span style="color:#fca5a5">red doesn't</span> · tap a name to switch it</div>
         <div id="pbAll" class="chips"></div>
         <div class="mut" style="margin:14px 0 4px">POSTED ALERTS — blocked names are never traded (tap × to unblock)</div>
@@ -231,7 +232,8 @@ function render(){
     : '<div class="mut" style="padding:6px 0">No open positions right now</div>';
   $("posPosted").innerHTML = renderPos(pos.filter(p=>p.style==="posted"));
   $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
-  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook");
+  $("posSpy").innerHTML = renderPos(pos.filter(p=>p.style==="spyvwap"));
+  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook"&&p.style!=="spyvwap");
   $("posOther").innerHTML = other.length ? '<div class="mut" style="margin:12px 0 6px">UNASSIGNED</div>' + renderPos(other) : "";
   const oo = SNAP.openOrders||[];
   $("openOrders").innerHTML = oo.length ? oo.map(o =>
@@ -254,11 +256,18 @@ function render(){
   if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
   const pausedPosted = pa.status !== "running";
   const pausedPb = pb.status === "paused";
+  const sv = (SNAP.systems||{}).spyVwap||{};
+  const svTag = sv.status === "running" ? "Running · paper"
+    : sv.status === "paused" ? "Paused"
+    : sv.status === "awaiting-vwap-check" ? "Starts Mon · VWAP check first"
+    : "Off";
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
     '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
-    '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>';
+    '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
+    '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b><br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close</span></span>' +
+    '<span class="tag">' + svTag + '</span></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
     const pausing = b.textContent === "Pause";
