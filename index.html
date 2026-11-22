@@ -266,7 +266,7 @@ function render(){
     '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
     '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
-    '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b><br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close</span></span>' +
+    '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
     '<span class="tag">' + svTag + '</span></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
