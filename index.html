@@ -124,6 +124,8 @@
       <div id="posPlaybook"></div>
       <div class="mut" style="margin:12px 0 6px">STYLE 3 • SPY VWAP PICTURE-PERFECT</div>
       <div id="posSpy"></div>
+      <div class="mut" style="margin:12px 0 6px">STYLE 4 • SPY VWAP VOLUME SNIPER</div>
+      <div id="posStyle4"></div>
       <div id="posOther"></div>
       <div class="mut" style="margin:14px 0 6px">ORDERS WAITING TO FILL</div>
       <div id="openOrders"></div>
@@ -233,7 +235,8 @@ function render(){
   $("posPosted").innerHTML = renderPos(pos.filter(p=>p.style==="posted"));
   $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
   $("posSpy").innerHTML = renderPos(pos.filter(p=>p.style==="spyvwap"));
-  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook"&&p.style!=="spyvwap");
+  $("posStyle4").innerHTML = renderPos(pos.filter(p=>p.style==="style4"));
+  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook"&&p.style!=="spyvwap"&&p.style!=="style4");
   $("posOther").innerHTML = other.length ? '<div class="mut" style="margin:12px 0 6px">UNASSIGNED</div>' + renderPos(other) : "";
   const oo = SNAP.openOrders||[];
   $("openOrders").innerHTML = oo.length ? oo.map(o =>
@@ -257,6 +260,7 @@ function render(){
   const pausedPosted = pa.status !== "running";
   const pausedPb = pb.status === "paused";
   const sv = (SNAP.systems||{}).spyVwap||{};
+  const s4 = (SNAP.systems||{}).style4||{};
   const svTag = sv.status === "running" ? "Running · paper"
     : sv.status === "paused" ? "Paused"
     : sv.status === "awaiting-vwap-check" ? "Starts Mon · VWAP check first"
@@ -267,7 +271,9 @@ function render(){
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
     '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
-    '<span class="tag">' + svTag + '</span></div>';
+    '<span class="tag">' + svTag + '</span></div>' +
+    '<div class="sys"><span><b>Style 4 — SPY VWAP Volume Sniper</b> <span class="tag">DRAFT</span><br><span class="mut">SPY 0DTE · ' + (s4.otmStrikes||1) + ' strike OTM · entries at VWAP on ' + (s4.volMult||1.5) + '× volume · ' + (s4.contracts||4) + ' contracts · zero stop · trail +' + (s4.trailArmPct||20) + '% / ' + (s4.trailDistPts||10) + ' pts · out on VWAP close<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
+    '<span class="tag">Not locked</span></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
     const pausing = b.textContent === "Pause";
