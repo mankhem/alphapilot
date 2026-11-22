@@ -124,7 +124,7 @@
       <div id="posPlaybook"></div>
       <div class="mut" style="margin:12px 0 6px">STYLE 3 • SPY VWAP PICTURE-PERFECT</div>
       <div id="posSpy"></div>
-      <div class="mut" style="margin:12px 0 6px">STYLE 4 • SPY VWAP VOLUME SNIPER</div>
+      <div class="mut" style="margin:12px 0 6px">STYLE 4 • SPY VWAP EVERY-TOUCH</div>
       <div id="posStyle4"></div>
       <div id="posOther"></div>
       <div class="mut" style="margin:14px 0 6px">ORDERS WAITING TO FILL</div>
@@ -272,7 +272,7 @@ function render(){
     '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
     '<span class="tag">' + svTag + '</span></div>' +
-    '<div class="sys"><span><b>Style 4 — SPY VWAP Volume Sniper</b> <span class="tag">DRAFT</span><br><span class="mut">SPY 0DTE · ' + (s4.otmStrikes||1) + ' strike OTM · entries at VWAP on ' + (s4.volMult||1.5) + '× volume · ' + (s4.contracts||4) + ' contracts · zero stop · trail +' + (s4.trailArmPct||20) + '% / ' + (s4.trailDistPts||10) + ' pts · out on VWAP close<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
+    '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b> <span class="tag">DRAFT</span><br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
     '<span class="tag">Not locked</span></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
