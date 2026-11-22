@@ -261,8 +261,8 @@ function render(){
       {type:"close", occ:p.occ, qty:1});
   });
   if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
-  const pausedPosted = pa.status !== "running";
-  const pausedPostedB = pab.status !== "running";
+  const pausedPosted = pa.status === "paused";
+  const pausedPostedB = pab.status === "paused";
   const pausedPb = pb.status === "paused";
   const sv = (SNAP.systems||{}).spyVwap||{};
   const s4 = (SNAP.systems||{}).style4||{};
