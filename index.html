@@ -120,6 +120,8 @@
       <h2>OPEN POSITIONS</h2>
       <div class="mut" style="margin-bottom:6px">STYLE 1 • POSTED ALERTS</div>
       <div id="posPosted"></div>
+      <div class="mut" style="margin:12px 0 6px">STYLE 1B • POSTED ALERTS — BEARISH</div>
+      <div id="posPostedBearish"></div>
       <div class="mut" style="margin:12px 0 6px">STYLE 2 • PLAYBOOK VWAP RETEST</div>
       <div id="posPlaybook"></div>
       <div class="mut" style="margin:12px 0 6px">STYLE 3 • SPY VWAP PICTURE-PERFECT</div>
@@ -218,10 +220,11 @@ function render(){
   const ageMin = (Date.now() - new Date(SNAP.collectedAt).getTime())/60000;
   $("snapLine").innerHTML = "Snapshot " + fmtTime(SNAP.collectedAt) + (ageMin>3 ? ' · <span class="stale">STALE (' + Math.round(ageMin) + ' min)</span>' : " · live");
   const g = SNAP.gateway||{};
-  const pa = (SNAP.systems||{}).postedAlerts||{}, pb = (SNAP.systems||{}).playbook||{};
+  const pa = (SNAP.systems||{}).postedAlerts||{}, pab = (SNAP.systems||{}).postedBearish||{}, pb = (SNAP.systems||{}).playbook||{};
   $("dots").innerHTML =
     '<span class="dot">Gateway <b class="'+(g.status==="live"?"on":"off")+'">● '+(g.label||g.status||"—")+'</b></span>' +
     '<span class="dot">Posted Alerts <b class="'+(pa.status==="running"?"on":"off")+'">● '+(pa.status||"—")+'</b></span>' +
+    '<span class="dot">Posted Alerts — Bearish <b class="'+(pab.status==="running"?"on":"off")+'">● '+(pab.status||"—")+'</b></span>' +
     '<span class="dot">Playbook <b class="'+(pb.status==="scanning"||pb.status==="idle"?"on":"off")+'">● '+(pb.status||"—")+'</b></span>';
   const pos = SNAP.positions||[];
   const renderPos = list => list.length ? list.map(p =>
@@ -233,10 +236,11 @@ function render(){
     '<button data-close="'+p.occ+'">'+((+p.qty)>1?"Close all":"Close")+'</button></span></div></div>').join("")
     : '<div class="mut" style="padding:6px 0">No open positions right now</div>';
   $("posPosted").innerHTML = renderPos(pos.filter(p=>p.style==="posted"));
+  $("posPostedBearish").innerHTML = renderPos(pos.filter(p=>p.style==="postedBearish"));
   $("posPlaybook").innerHTML = renderPos(pos.filter(p=>p.style==="playbook"));
   $("posSpy").innerHTML = renderPos(pos.filter(p=>p.style==="spyvwap"));
   $("posStyle4").innerHTML = renderPos(pos.filter(p=>p.style==="style4"));
-  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="playbook"&&p.style!=="spyvwap"&&p.style!=="style4");
+  const other = pos.filter(p=>p.style!=="posted"&&p.style!=="postedBearish"&&p.style!=="playbook"&&p.style!=="spyvwap"&&p.style!=="style4");
   $("posOther").innerHTML = other.length ? '<div class="mut" style="margin:12px 0 6px">UNASSIGNED</div>' + renderPos(other) : "";
   const oo = SNAP.openOrders||[];
   $("openOrders").innerHTML = oo.length ? oo.map(o =>
@@ -258,6 +262,7 @@ function render(){
   });
   if(!viewDate) renderTrades(SNAP.tradeLog||[], "TODAY");
   const pausedPosted = pa.status !== "running";
+  const pausedPostedB = pab.status !== "running";
   const pausedPb = pb.status === "paused";
   const sv = (SNAP.systems||{}).spyVwap||{};
   const s4 = (SNAP.systems||{}).style4||{};
@@ -268,17 +273,24 @@ function render(){
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
     '<button data-toggle="posted">'+(pausedPosted?"Resume":"Pause")+'</button></div>' +
+    '<div class="sys"><span><b>Posted Alerts — Bearish</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten · puts</span></span>' +
+    '<button data-toggle="postedBearish">'+(pausedPostedB?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
     '<button data-toggle="playbook">'+(pausedPb?"Resume":"Pause")+'</button></div>' +
     '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
     '<span class="tag">' + svTag + '</span></div>' +
-    '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b> <span class="tag">DRAFT</span><br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
-    '<span class="tag">Not locked</span></div>';
+    '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b>' + (s4.locked ? ' <span class="tag">🔒 LOCKED</span>' : ' <span class="tag">DRAFT</span>') + '<br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
+    '<span class="tag">' + (s4.locked ? svTag : 'Not locked') + '</span></div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
-    const style = b.dataset.toggle, label = style==="posted" ? "Posted Alerts" : "Playbook VWAP Retest";
+    const style = b.dataset.toggle;
+    const label = style==="posted" ? "Posted Alerts" : style==="postedBearish" ? "Posted Alerts — Bearish" : "Playbook VWAP Retest";
     const pausing = b.textContent === "Pause";
+    const body = style==="postedBearish"
+      ? (pausing ? "Only new bearish entries stop. The trader keeps running — open bearish positions keep their ladder exits, and bullish Posted Alerts are not touched."
+                 : "Bearish entries open up again on the next ⭐ alert. The trader was never stopped.")
+      : (pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.");
     confirmAction((pausing?"Pause ":"Resume ") + label + "?",
-      pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.",
+      body,
       {type:(pausing?"pause":"resume"), style});
   });
   renderNames();
