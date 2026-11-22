@@ -276,6 +276,10 @@ function render(){
     : sv.status === "paused" ? "Paused"
     : sv.status === "awaiting-vwap-check" ? "Starts Mon · VWAP check first"
     : "Off";
+  const svPaused = !!sv.paused, s4Paused = !!s4.paused;
+  const swHtml = (style, paused) => '<button class="sw '+(paused?"off":"on")+'" data-toggle="'+style+'" data-on="'+(paused?"0":"1")+'" role="switch" aria-checked="'+(paused?"false":"true")+'"><span class="swtx">'+(paused?"OFF":"ON")+'</span><span class="knob"></span></button>';
+  const svTag2 = svPaused ? "OFF — will not trade until you turn it back ON" : svTag;
+  const s4Tag = s4Paused ? "OFF — will not trade until you turn it back ON" : (s4.locked ? svTag : "Not locked");
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
     '<button class="sw '+(pausedPosted?"off":"on")+'" data-toggle="posted" data-on="'+(pausedPosted?"0":"1")+'" role="switch" aria-checked="'+(pausedPosted?"false":"true")+'"><span class="swtx">'+(pausedPosted?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
@@ -283,17 +287,19 @@ function render(){
     '<button class="sw '+(pausedPostedB?"off":"on")+'" data-toggle="postedBearish" data-on="'+(pausedPostedB?"0":"1")+'" role="switch" aria-checked="'+(pausedPostedB?"false":"true")+'"><span class="swtx">'+(pausedPostedB?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
     '<button class="sw '+(pausedPb?"off":"on")+'" data-toggle="playbook" data-on="'+(pausedPb?"0":"1")+'" role="switch" aria-checked="'+(pausedPb?"false":"true")+'"><span class="swtx">'+(pausedPb?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
-    '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked</span></span>' +
-    '<span class="tag">' + svTag + '</span></div>' +
-    '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b>' + (s4.locked ? ' <span class="tag">🔒 LOCKED</span>' : ' <span class="tag">DRAFT</span>') + '<br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '</span></span>' +
-    '<span class="tag">' + (s4.locked ? svTag : 'Not locked') + '</span></div>';
+    '<div class="sys"><span><b>Style 3 — SPY VWAP Picture-Perfect</b>' + (sv.locked ? ' <span class="tag">🔒 LOCKED</span>' : '') + '<br><span class="mut">SPY 0DTE · entries at VWAP after a 0.40% proven move · ' + (sv.contracts||2) + ' contracts · no stop · trail +' + (sv.trailArmPct||10) + '% / ' + (sv.trailDistPts||5) + ' pts · out on VWAP close<br>Your call anytime: Close or Close 1 on any open position — your exit is never blocked<br>' + svTag2 + '</span></span>' +
+    swHtml("spyVwap", svPaused) + '</div>' +
+    '<div class="sys"><span><b>' + (s4.label||'Style 4 — SPY VWAP Every-Touch') + '</b>' + (s4.locked ? ' <span class="tag">🔒 LOCKED</span>' : ' <span class="tag">DRAFT</span>') + '<br><span class="mut">' + (s4.desc||'') + '<br>Backtest: ' + (s4.backtest||'—') + '<br>' + s4Tag + '</span></span>' +
+    swHtml("style4", s4Paused) + '</div>';
   document.querySelectorAll("[data-toggle]").forEach(b => b.onclick = () => {
     const style = b.dataset.toggle;
-    const label = style==="posted" ? "Posted Alerts" : style==="postedBearish" ? "Posted Alerts — Bearish" : "Playbook VWAP Retest";
+    const label = style==="posted" ? "Posted Alerts" : style==="postedBearish" ? "Posted Alerts — Bearish" : style==="spyVwap" ? "Style 3 — SPY VWAP Picture-Perfect" : style==="style4" ? "Style 4 — SPY VWAP Every-Touch" : "Playbook VWAP Retest";
     const pausing = b.dataset.on === "1";
     const body = style==="postedBearish"
       ? (pausing ? "Only new bearish entries stop. The trader keeps running — open bearish positions keep their ladder exits, and bullish Posted Alerts are not touched."
                  : "Bearish entries open up again on the next ⭐ alert. The trader was never stopped.")
+      : (style==="spyVwap"||style==="style4")
+      ? (pausing ? "The style is switched OFF. It will not take trades — including Monday's start — until you turn it back ON." : "The style is ON and armed. It starts paper trading Monday after the live VWAP check passes.")
       : (pausing ? "The engine stops taking new " + label + " trades. WARNING: pausing Posted Alerts also stops ladder exits on its open positions until resumed." : "The engine restarts and manages its positions again.");
     confirmAction((pausing?"Turn OFF ":"Turn ON ") + label + "?",
       body,
