@@ -252,13 +252,21 @@ function render(){
   $("openOrders").innerHTML = oo.length ? oo.map(o =>
     '<div class="pos"><div><b>'+o.action+'</b> '+o.contractLabel+' ×'+(+o.qty)+
     '<br><span class="mut">'+(+o.filled)+' of '+(+o.qty)+' filled · '+o.status+(o.limitPrice?' · limit '+(+o.limitPrice):"")+'</span></div>'+
-    '<div class="pl" style="color:#fbbf24">waiting</div></div>').join("")
+    '<div style="text-align:right"><div class="pl" style="color:#fbbf24">waiting</div>' +
+    '<button data-cancel="' + o.occ + '" data-oaction="' + o.action + '" style="margin-top:6px;padding:5px 10px;font-size:12px">Cancel</button></div></div>').join("")
     : '<div class="mut" style="padding:6px 0">No orders waiting — everything is filled</div>';
   document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close);
     confirmAction("Close " + p.ticker + " " + p.strike + p.right + "?",
       "Market sell ALL " + (+p.qty) + " contract(s) at the broker (paper). Entry " + (+p.entry).toFixed(2) + ", current P/L " + money(p.unrealizedPnL) + ". This cannot be undone.",
       {type:"close", occ:p.occ});
+  });
+  document.querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => {
+    const o = oo.find(x=>x.occ===b.dataset.cancel && x.action===b.dataset.oaction);
+    if(!o) return;
+    confirmAction("Cancel this order?",
+      "Cancel the " + o.action + " " + o.contractLabel + " \u00d7" + (+o.qty) + " waiting order at the broker (paper)" + (o.limitPrice ? " \u00b7 limit " + (+o.limitPrice) : "") + ". This does NOT close any position \u2014 it only kills the unfilled order. If the system's signal still stands, it may place a new order.",
+      {type:"cancel", occ:o.occ, action:o.action, permId:o.permId||null});
   });
   document.querySelectorAll("[data-close1]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close1);
