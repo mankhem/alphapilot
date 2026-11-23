@@ -291,6 +291,8 @@ function render(){
   $("systems").innerHTML =
     '<div class="sys"><span><b>Posted Alerts</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten</span></span>' +
     '<button class="sw '+(pausedPosted?"off":"on")+'" data-toggle="posted" data-on="'+(pausedPosted?"0":"1")+'" role="switch" aria-checked="'+(pausedPosted?"false":"true")+'"><span class="swtx">'+(pausedPosted?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
+    '<div class="sys"><span><b>Early breakeven · +10%</b><br><span class="mut">Posted Alerts option — ON: a position’s stop moves to breakeven once it has traded +10% · OFF: the classic ladder rules</span></span>' +
+    '<button class="sw '+(SET.earlyBE?"on":"off")+'" data-eb="1" data-on="'+(SET.earlyBE?"1":"0")+'" role="switch" aria-checked="'+(SET.earlyBE?"true":"false")+'"><span class="swtx">'+(SET.earlyBE?"ON":"OFF")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Posted Alerts — Bearish</b><br><span class="mut">⭐ top-strike · 2 contracts · ladder exits · 3:55pm ET flatten · puts</span></span>' +
     '<button class="sw '+(pausedPostedB?"off":"on")+'" data-toggle="postedBearish" data-on="'+(pausedPostedB?"0":"1")+'" role="switch" aria-checked="'+(pausedPostedB?"false":"true")+'"><span class="swtx">'+(pausedPostedB?"OFF":"ON")+'</span><span class="knob"></span></button></div>' +
     '<div class="sys"><span><b>Playbook VWAP Retest</b><br><span class="mut">14-name whitelist · 1 contract · 10–12 + 2–3:45 ET</span></span>' +
@@ -313,14 +315,19 @@ function render(){
       body,
       {type:(pausing?"pause":"resume"), style});
   });
+  document.querySelectorAll("[data-eb]").forEach(b => b.onclick = () => {
+    SET.earlyBE = !SET.earlyBE;
+    saveSettings();
+    render();
+  });
   renderNames();
   keyState();
 }
 
 const PB_NAMES = ["ACN","AMD","CRM","CRWD","FCX","HOOD","HPE","IBM","NBIS","NOW","OKTA","PANW","QCOM","TEAM"];
-let SET = {postedBlocked:[], playbookDisabled:[], playbookAlsoTrade:[]};
+let SET = {postedBlocked:[], playbookDisabled:[], playbookAlsoTrade:[], earlyBE:false};
 let setPending = null;
-function setLists(){ return {postedBlocked:SET.postedBlocked.slice(), playbookDisabled:SET.playbookDisabled.slice(), playbookAlsoTrade:SET.playbookAlsoTrade.slice()}; }
+function setLists(){ return {postedBlocked:SET.postedBlocked.slice(), playbookDisabled:SET.playbookDisabled.slice(), playbookAlsoTrade:SET.playbookAlsoTrade.slice(), earlyBE:!!SET.earlyBE}; }
 function saveSettings(){
   setPending = {...setLists(), at: Date.now()};
   sendCommand({type:"settings", ...setLists()});
@@ -328,9 +335,9 @@ function saveSettings(){
 }
 function renderNames(){
   if(SNAP && SNAP.settings){
-    const srv = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice(), playbookAlsoTrade:(SNAP.settings.playbookAlsoTrade||[]).slice()};
-    if(setPending && JSON.stringify(srv) === JSON.stringify({postedBlocked:setPending.postedBlocked, playbookDisabled:setPending.playbookDisabled, playbookAlsoTrade:setPending.playbookAlsoTrade})) setPending = null;
-    if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice(), playbookAlsoTrade:setPending.playbookAlsoTrade.slice()};
+    const srv = {postedBlocked:(SNAP.settings.postedBlocked||[]).slice(), playbookDisabled:(SNAP.settings.playbookDisabled||[]).slice(), playbookAlsoTrade:(SNAP.settings.playbookAlsoTrade||[]).slice(), earlyBE:!!SNAP.settings.earlyBE};
+    if(setPending && JSON.stringify(srv) === JSON.stringify({postedBlocked:setPending.postedBlocked, playbookDisabled:setPending.playbookDisabled, playbookAlsoTrade:setPending.playbookAlsoTrade, earlyBE:!!setPending.earlyBE})) setPending = null;
+    if(setPending && Date.now() - setPending.at < 90000) SET = {postedBlocked:setPending.postedBlocked.slice(), playbookDisabled:setPending.playbookDisabled.slice(), playbookAlsoTrade:setPending.playbookAlsoTrade.slice(), earlyBE:!!setPending.earlyBE};
     else { SET = srv; setPending = null; }
   }
   const tradingSet = new Set([...PB_NAMES, ...SET.playbookAlsoTrade].filter(t=>!SET.playbookDisabled.includes(t)));
