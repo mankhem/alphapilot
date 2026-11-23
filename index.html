@@ -255,7 +255,9 @@ function render(){
     '<div class="pos"><div><b>'+o.action+'</b> '+o.contractLabel+' ×'+(+o.qty)+
     '<br><span class="mut">'+(+o.filled)+' of '+(+o.qty)+' filled · '+o.status+(o.limitPrice?' · limit '+(+o.limitPrice):"")+'</span></div>'+
     '<div style="text-align:right"><div class="pl" style="color:#fbbf24">waiting</div>' +
-    '<button data-cancel="' + o.occ + '" data-oaction="' + o.action + '" style="margin-top:6px;padding:5px 10px;font-size:12px">Cancel</button></div></div>').join("")
+    '<button data-cancel="' + o.occ + '" data-oaction="' + o.action + '" style="margin-top:6px;padding:5px 10px;font-size:12px">Cancel</button>' +
+    (o.action==="SELL" ? '<button data-resell="' + o.occ + '" data-permid="' + (o.permId||"") + '" style="margin-top:6px;margin-left:6px;padding:5px 10px;font-size:12px">⟳ Re-sell at market</button>' : "") +
+    '</div></div>').join("")
     : '<div class="mut" style="padding:6px 0">No orders waiting — everything is filled</div>';
   document.querySelectorAll("[data-close]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close);
@@ -269,6 +271,13 @@ function render(){
     confirmAction("Cancel this order?",
       "Cancel the " + o.action + " " + o.contractLabel + " \u00d7" + (+o.qty) + " waiting order at the broker (paper)" + (o.limitPrice ? " \u00b7 limit " + (+o.limitPrice) : "") + ". This does NOT close any position \u2014 it only kills the unfilled order. If the system's signal still stands, it may place a new order.",
       {type:"cancel", occ:o.occ, action:o.action, permId:o.permId||null});
+  });
+  document.querySelectorAll("[data-resell]").forEach(b => b.onclick = () => {
+    const o = oo.find(x=>x.occ===b.dataset.resell);
+    if(!o) return;
+    confirmAction("Re-sell at market — " + o.contractLabel + "?",
+      "Cancels the stuck SELL order and places a FRESH market sell for the position (paper). If the stuck sell fills first, nothing double-sells — the engine re-checks the broker before selling.",
+      {type:"resell", occ:o.occ, permId:o.permId||null});
   });
   document.querySelectorAll("[data-close1]").forEach(b => b.onclick = () => {
     const p = pos.find(x=>x.occ===b.dataset.close1);
